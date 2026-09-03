@@ -1,0 +1,70 @@
+{
+  "games": [
+    {
+      "id": "deepone_one",
+      "name": "Deepone One",
+      "description": "Deep One 离线 ADV / 录屏",
+      "enabled": true,
+      "cover": "",
+      "root": "data/deepone_one",
+      "paths": {
+        "json": "json",
+        "resource": "resource",
+        "episode": "episode",
+        "custom_videos": "custom_videos"
+      }
+    },
+    {
+      "id": "orphan_order",
+      "name": "孤儿的工作",
+      "description": "Minashigo ADV · 日文台本",
+      "kind": "adv",
+      "category_mode": "minashigo",
+      "local_only": true,
+      "enabled": true,
+      "cover": "",
+      "root": "data/orphan_order",
+      "paths": {
+        "json": "json",
+        "resource": "resource",
+        "episode": "episode",
+        "custom_videos": "videos"
+      }
+    },
+    {
+      "id": "orphan_recordings",
+      "name": "孤儿的工作 · 录屏",
+      "description": "Telegram 录屏 · 按 #标签分类",
+      "kind": "telegram",
+      "enabled": true,
+      "cover": "",
+      "root": "data/orphan_recordings",
+      "export_dir": "ChatExport_2026-08-25",
+      "catalog_file": "catalog.json",
+      "root_tags": ["孤儿的工作", "孤子的工作"],
+      "paths": {
+        "json": "json",
+        "resource": "resource",
+        "episode": "episode",
+        "custom_videos": "videos"
+      }
+    },
+    {
+      "id": "self_purchase",
+      "name": "自购",
+      "description": "自购作品 · 按文件夹层级浏览",
+      "kind": "purchased",
+      "local_only": true,
+      "enabled": true,
+      "cover": "",
+      "root": "data/自购",
+      "library_dir": ".",
+      "paths": {
+        "json": "_unused/json",
+        "resource": "_unused/resource",
+        "episode": "_unused/episode",
+        "custom_videos": "_unused/videos"
+      }
+    }
+  ]
+}

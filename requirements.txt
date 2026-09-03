@@ -1,0 +1,12 @@
+# legacy (pygame)
+pygame
+opencv-python
+requests
+imageio-ffmpeg
+
+# 新版客户端
+PySide6
+
+# Telegram 下载与按标签/媒体组分类
+telethon
+PySocks

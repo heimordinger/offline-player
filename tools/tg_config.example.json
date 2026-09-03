@@ -1,0 +1,18 @@
+{
+  "_comment": "my.telegram.org 一直 ERROR 时，可先用下方 Desktop 官方凭证（仅个人下载自用）",
+  "api_id": 2040,
+  "api_hash": "b18441a1ff607e10a989891a5462e627",
+  "session": "tg_session",
+  "chat": "孤儿的工作",
+  "proxy": {
+    "proxy_type": "socks5",
+    "addr": "127.0.0.1",
+    "port": 1080
+  },
+  "download_workers": 8,
+  "output_dir": "tg_library",
+  "root_tags": ["孤儿的工作"],
+  "limit": 20,
+  "min_file_bytes": 0,
+  "skip_existing": true
+}

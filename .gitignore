@@ -1,0 +1,36 @@
+# 本地资源（体积大，不上传；保留说明文件）
+/data/**
+!/data/README.md
+
+# 用户配置
+/settings.json
+
+# 构建 / 打包
+/do_main.build/
+/do_main.dist/
+/do_main.onefile-build/
+/build/
+*.exe
+*.spec
+*.dll
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 工具私密文件
+/tg_library/
+tools/tg_config.json
+tools/tg_session.session
+tools/tg_session.session-journal
+
+# 杂项
+test.py
+/tmp_avatar_test/
+tools/import_log.txt
+tools/tg_session.session*
+*.log
+.DS_Store
+Thumbs.db
