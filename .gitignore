@@ -63,5 +63,6 @@ Thumbs.db
 /run_debug.bat
 /app/core/updater.py
 /push_to_github.bat
+/upload_to_github.bat
 /.vscode/
 
