@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>离线播放器 · 互通测试</title>
+  <link rel="stylesheet" href="/app.css" />
+  <style>
+    body { padding: 16px; }
+    .card { background: var(--panel); border-radius: 12px; padding: 14px; margin: 12px 0; }
+    .status-ok { color: #3fb950; }
+    .status-bad { color: #f85149; }
+    input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #0d1117; color: var(--text); margin-top: 8px; }
+    .game { border-top: 1px solid var(--border); padding: 10px 0; }
+    .samples { display: grid; gap: 10px; margin-top: 8px; }
+    .sample img, .sample video { max-width: 100%; border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1 class="page-title">互通测试</h1>
+  <p class="hint">旧版连通测试页。主界面请访问 <a href="/">首页</a>。</p>
+  <div class="card" id="status"><p>点击下方开始测试</p></div>
+  <div class="card" id="token-box" style="display:none">
+    <label for="token">访问令牌</label>
+    <input id="token" type="text" />
+  </div>
+  <button type="button" class="btn" id="btn-test">开始连通测试</button>
+  <div class="card" id="games-box" style="display:none">
+    <div id="games"></div>
+  </div>
+  <script>
+    const statusEl = document.getElementById("status");
+    const gamesEl = document.getElementById("games");
+    const gamesBox = document.getElementById("games-box");
+    const tokenBox = document.getElementById("token-box");
+    const tokenInput = document.getElementById("token");
+    function qs() { const t = tokenInput.value.trim(); return t ? `?token=${encodeURIComponent(t)}` : ""; }
+    async function api(path) {
+      const res = await fetch(path + qs());
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || res.statusText); }
+      return res.json();
+    }
+    document.getElementById("btn-test").addEventListener("click", async () => {
+      try {
+        const ping = await api("/api/ping");
+        if (ping.token_required && !tokenInput.value.trim()) { tokenBox.style.display = "block"; throw new Error("需要 token"); }
+        statusEl.innerHTML = `<p class="status-ok">✓ 已连通 v${ping.version}</p>`;
+        const { games } = await api("/api/games");
+        gamesBox.style.display = "block";
+        gamesEl.innerHTML = games.map((g) => `<div class="game"><h3>${g.name}</h3><button class="btn" data-game="${g.id}">样本</button><div class="samples" id="samples-${g.id}"></div></div>`).join("");
+        gamesEl.querySelectorAll("button[data-game]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const data = await api(`/api/games/${encodeURIComponent(btn.dataset.game)}/samples`);
+            const host = document.getElementById(`samples-${btn.dataset.game}`);
+            host.innerHTML = (data.samples || []).map((s) => s.kind === "video" ? `<video controls playsinline src="${s.url + qs()}"></video>` : `<img src="${s.url + qs()}" />`).join("");
+          });
+        });
+      } catch (e) { statusEl.innerHTML = `<p class="status-bad">${e.message}</p>`; }
+    });
+  </script>
+</body>
+</html>

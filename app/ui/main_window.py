@@ -26,6 +26,12 @@ from app.core.minashigo_ids import (
     SUMMON_HUB,
 )
 from app.core.minashigo_viewer_index import is_card_category
+from app.core.deepone_ids import (
+    character_id_from_card,
+    hub_of_card,
+    is_deepone_card_category,
+    is_deepone_character_category,
+)
 from app.core.preview_loader import card_id_from_story, fetch_card_face
 from app.core.purchased_catalog import (
     PurchasedCatalog,
@@ -62,10 +68,11 @@ GRID_COLS = 4
 GRID_ROWS = 3
 GAME_ICON = QSize(1, 1)
 GAME_CELL = QSize(300, 120)
-CAT_ICON = QSize(240, 120)
-CAT_CELL = QSize(256, 168)
+# 图标下方需容纳标题+副标题两行中文；原先 cell 过矮会裁切副标题上沿
+CAT_ICON = QSize(240, 118)
+CAT_CELL = QSize(256, 196)
 SCENE_ICON = QSize(192, 96)
-SCENE_CELL = QSize(220, 152)
+SCENE_CELL = QSize(220, 176)
 
 
 class MainWindow(QMainWindow):
@@ -85,6 +92,10 @@ class MainWindow(QMainWindow):
         self._load_splash: SplashScreen | None = None
         self._pending_game_id: str = ""
         self._character_browse = False
+        self._browse_section = ""
+        self._browse_parent = ""
+        self._section_list_cache: dict[str, list[ThumbEntry]] = {}
+        self._scene_list_cache: dict[str, list[ThumbEntry]] = {}
         self.setWindowTitle("DeepOneRE")
         from project_paths import load_settings
 
@@ -308,6 +319,8 @@ class MainWindow(QMainWindow):
         self._current_game = game
         self.catalog = result.catalog
         self._category_entries = list(result.category_entries)
+        self._section_list_cache.clear()
+        self._scene_list_cache.clear()
         self._playback.set_catalog(self.catalog)
         if isinstance(result.catalog, PurchasedCatalog):
             self._buy_reader.set_catalog(result.catalog)
@@ -315,6 +328,9 @@ class MainWindow(QMainWindow):
         self._show_home()
 
     def _home_back_clicked(self):
+        if self._character_browse and self._browse_parent:
+            self._show_section_cards(self._browse_parent)
+            return
         if self._character_browse:
             self._show_home()
         else:
@@ -326,6 +342,7 @@ class MainWindow(QMainWindow):
             return
         self._character_browse = False
         self._browse_section = ""
+        self._browse_parent = ""
         self._current_category = ""
         self._scene_title.setText("")
         self._scene_hint.setText("")
@@ -343,28 +360,37 @@ class MainWindow(QMainWindow):
         if self.catalog is None or self._current_game is None:
             self._show_home()
             return
+        from app.core.deepone_ids import hub_of_card, is_deepone_character_category
+
         self._character_browse = True
         self._browse_section = section
+        self._browse_parent = (
+            hub_of_card(section) if is_deepone_character_category(section) else ""
+        )
         self._current_category = section
-        cards = self.catalog.section_cards_with_scenes(section)
-        entries: list[ThumbEntry] = []
-        for card_id in cards:
-            jids = self.catalog.list_by_category(card_id)
-            entries.append(
-                ThumbEntry(
-                    key=card_id,
-                    title=self.catalog.category_display_name(card_id),
-                    subtitle=f"{len(jids)} 个场景 · {card_id}",
-                    image_path=self.catalog.category_icon(card_id),
+        cached = self._section_list_cache.get(section)
+        if cached is not None:
+            entries = cached
+        else:
+            cards = self.catalog.section_cards_with_scenes(section)
+            entries = []
+            for card_id in cards:
+                entries.append(
+                    ThumbEntry(
+                        key=card_id,
+                        title=self.catalog.category_display_name(card_id),
+                        subtitle=self.catalog.category_caption(card_id),
+                        image_path=self.catalog.category_icon(card_id),
+                    )
                 )
-            )
+            self._section_list_cache[section] = entries
         title = self.catalog.category_display_name(section)
         self._home_title.setText(f"{self._current_game.name} · {title}")
-        self._home_back_btn.setText("← 分类")
+        self._home_back_btn.setText("← 角色" if self._browse_parent else "← 分类")
         self._category_grid.set_entries(entries, page=0)
         self._stack.setCurrentIndex(PAGE_HOME)
         self.statusBar().showMessage(
-            f"{self._current_game.name} · {title} · {len(cards)} 张卡面"
+            f"{self._current_game.name} · {title} · {self.catalog.category_caption(section)}"
         )
 
     def _back_from_scenes(self):
@@ -376,6 +402,27 @@ class MainWindow(QMainWindow):
         ):
             self._show_section_cards(self._browse_section)
             return
+        # DeepOne：场景 → 皮肤列表（四位角色）或分区卡面列表
+        if (
+            self.catalog
+            and is_deepone_card_category(self._current_category or "")
+            and getattr(self.catalog, "_category_mode", "") != "minashigo"
+        ):
+            char_id = character_id_from_card(self._current_category)
+            if char_id:
+                self._show_section_cards(char_id)
+                return
+            self._show_section_cards(hub_of_card(self._current_category))
+            return
+        if (
+            self._character_browse
+            and self.catalog
+            and is_deepone_character_category(self._current_category or "")
+        ):
+            parent = self._browse_parent or hub_of_card(self._current_category)
+            if parent:
+                self._show_section_cards(parent)
+                return
         if (
             isinstance(self.catalog, PurchasedCatalog)
             and self._current_category
@@ -393,6 +440,9 @@ class MainWindow(QMainWindow):
         if self._category_worker and self._category_worker.isRunning():
             return
 
+        if self.catalog.is_character_hub(cat) if hasattr(self.catalog, "is_character_hub") else False:
+            self._show_section_cards(cat)
+            return
         if self.catalog.is_card_hub(cat) if hasattr(self.catalog, "is_card_hub") else False:
             self._show_section_cards(cat)
             return
@@ -427,6 +477,12 @@ class MainWindow(QMainWindow):
             self._scene_hint.setText("正在加载…")
             self._back_btn.setText("← 返回")
 
+        cached = self._scene_list_cache.get(cat)
+        if cached is not None:
+            self._stack.setCurrentIndex(PAGE_SCENES)
+            self._on_category_loaded(cat, cached)
+            return
+
         self._detail_label.setText("正在列出作品…")
         self._scene_grid.set_entries([], page=0)
         self._scene_grid.setEnabled(False)
@@ -449,6 +505,7 @@ class MainWindow(QMainWindow):
     def _on_category_loaded(self, cat: str, entries: list):
         if cat != self._current_category or self.catalog is None:
             return
+        self._scene_list_cache[cat] = entries
         self._scene_grid.setEnabled(True)
         is_custom = cat == CUSTOM_CATEGORY
         count = len(entries)

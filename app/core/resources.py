@@ -113,6 +113,12 @@ def _download_one(url: str, local: str) -> bool:
                     raise OSError("空文件")
                 os.replace(tmp, local)
                 return True
+            except urllib.error.HTTPError as exc:
+                # 404/403 再试也没用，立刻放弃，避免准备页卡死重试
+                print(f"[下载] 失败 ({attempt + 1}/3) {name}: {exc}")
+                _remove_if_exists(tmp)
+                if exc.code in (403, 404, 410):
+                    return False
             except (urllib.error.URLError, TimeoutError, OSError, socket.timeout) as exc:
                 print(f"[下载] 失败 ({attempt + 1}/3) {name}: {exc}")
                 _remove_if_exists(tmp)
@@ -240,10 +246,10 @@ def build_download_order(
     seen: set[str] = set()
     ordered: list[tuple[str, str, str]] = []
 
-    for rel, item in missing:
+    for rel, url, local in missing:
         if rel.lower().endswith(".txt") and rel not in seen:
             seen.add(rel)
-            ordered.append(item)
+            ordered.append((rel, url, local))
 
     if commands:
         for rel in collect_script_resource_rels(commands, cursor):

@@ -10,6 +10,18 @@
 /do_main.dist/
 /do_main.onefile-build/
 /build/
+/dist/
+/build_release/
+/dist_release/
+/release/offline-player/
+/release/offline-player-update/
+/release/cache/
+/release/*.zip
+/release/*.log
+/release/OfflinePlayer.exe
+/release/offline-player/_deps/
+/build_release/
+/dist_release/
 *.exe
 *.spec
 *.dll
@@ -34,3 +46,6 @@ tools/tg_session.session*
 *.log
 .DS_Store
 Thumbs.db
+/_tmp_extract/
+/_tmp_script_dump.txt
+.cursor/

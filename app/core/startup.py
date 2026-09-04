@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 from PySide6.QtCore import QThread, Signal
 
+from app.core.game_activate import activate_game
 from app.core.category_names import category_names_cache_path, resolve_category_name_map
 from app.core.game_registry import GameInfo, load_games, quick_scene_count
 from app.core.preview_loader import (
@@ -25,7 +26,7 @@ from app.core.scene_catalog import (
 from app.core.telegram_catalog import TelegramCatalog
 from app.core.purchased_catalog import PurchasedCatalog
 from app.core.types import ThumbEntry
-from project_paths import load_settings, set_active_game_paths
+from project_paths import load_settings
 
 
 @dataclass
@@ -49,17 +50,6 @@ def _emit(worker, phase: str, progress: float, detail: str, sub: str = ""):
         print(f"[{phase}] {detail} | {sub}")
     else:
         print(f"[{phase}] {detail}")
-
-
-def activate_game(game: GameInfo) -> None:
-    game.ensure_dirs()
-    set_active_game_paths(
-        game.id,
-        json_dir=game.paths.json_dir,
-        resource_dir=game.paths.resource_dir,
-        episode_dir=game.paths.episode_dir,
-        custom_videos_dir=game.paths.custom_videos_dir,
-    )
 
 
 def scan_json_list(json_dir: str, on_step=None) -> list[str]:
@@ -148,7 +138,11 @@ def build_category_icon_map(
 ) -> dict[str, str | None]:
     icons: dict[str, str | None] = {}
     for cat, jids in build_category_jids(catalog, json_list).items():
-        icons[cat] = catalog.category_preview_path(jids)
+        icons[cat] = catalog.category_icon(cat)
+    # DeepOne / 孤儿顶层分区也要图标
+    for cat in catalog.categories():
+        if cat not in icons:
+            icons[cat] = catalog.category_icon(cat)
     icons[LATEST_CATEGORY] = catalog.category_preview_path(catalog.recent_json_list())
     icons[CUSTOM_CATEGORY] = first_custom_thumb(catalog._custom_root)
     catalog.set_category_counts(cat_counts)
@@ -279,11 +273,16 @@ def load_telegram_game(worker, game: GameInfo, progress_lo: float, progress_hi: 
 
 
 def load_one_game(worker, game: GameInfo, progress_lo: float, progress_hi: float) -> GameLoadResult:
-    if game.kind == "telegram":
-        return load_telegram_game(worker, game, progress_lo, progress_hi)
-    if game.kind == "purchased":
-        return load_purchased_game(worker, game, progress_lo, progress_hi)
-    """在已 activate_game 的前提下加载单个游戏。"""
+    """按 kind 分发到适配器（见 app.core.adapters）。"""
+    from app.core.adapters import get_adapter
+
+    return get_adapter(game.kind).load(worker, game, progress_lo, progress_hi)
+
+
+def load_adv_game(worker, game: GameInfo, progress_lo: float, progress_hi: float) -> GameLoadResult:
+    # 切换 active 路径：Minashigo 的 viewer_index / scene_tags 依赖 json_dir 的上级目录
+    activate_game(game)
+
     span = max(0.01, progress_hi - progress_lo)
 
     def prog(local: float) -> float:
@@ -536,9 +535,8 @@ def load_one_game(worker, game: GameInfo, progress_lo: float, progress_hi: float
         if game.category_mode == "minashigo":
             subtitle = catalog.category_caption(cat)
         else:
-            subtitle = category_caption_fast(
-                cat, cat_counts, catalog._latest_limit, video_count
-            )
+            # DeepOne 分区用规则 caption（张卡面 · 场景数）
+            subtitle = catalog.category_caption(cat)
         entries.append(
             ThumbEntry(
                 key=cat,
@@ -564,27 +562,20 @@ def build_game_entries(
     games: list[GameInfo], loaded: dict[str, GameLoadResult]
 ) -> list[ThumbEntry]:
     """游戏层暂不显示预览图，仅标题 + 文字说明；cover 字段留给后续指定预览。"""
+    from app.core.adapters import adapter_info
+
     entries: list[ThumbEntry] = []
     for game in games:
+        unit = adapter_info(game.kind).unit
         result = loaded.get(game.id)
         if result:
             count = result.scene_count
-            unit = (
-                "组录屏"
-                if game.kind == "telegram"
-                else ("个作品" if game.kind == "purchased" else "个场景")
-            )
             if game.description:
                 subtitle = f"{game.description} · {count} {unit}"
             else:
                 subtitle = f"{count} {unit}"
         else:
             count = quick_scene_count(game)
-            unit = (
-                "组录屏"
-                if game.kind == "telegram"
-                else ("个作品" if game.kind == "purchased" else "个场景")
-            )
             if game.description and count:
                 subtitle = f"{game.description} · {count} {unit}"
             elif game.description:

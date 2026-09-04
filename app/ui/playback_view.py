@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.core.adv_script import load_adv_commands, resource_path, strip_adv_tags
+from app.core.script_dialogue import normalize_line_text, normalize_speaker
 from app.core.resource_loader import ResourceDownloadWorker
 from app.core.resources import (
     ensure_resource,
@@ -1163,13 +1164,13 @@ class PlaybackView(QWidget):
         op = parts[0].strip()
         if op == "name":
             raw = parts[1] if len(parts) > 1 else ""
-            self._speaker = strip_adv_tags(raw).strip()
+            self._speaker = normalize_speaker(raw)
         elif op == "bg":
             if len(parts) > 1:
                 self._set_cg(parts[1].strip())
         elif op == "msg":
-            raw = parts[2] if len(parts) > 2 else ""
-            self._set_dialogue(strip_adv_tags(raw))
+            raw = ",".join(parts[2:]) if len(parts) > 2 else ""
+            self._set_dialogue(normalize_line_text(strip_adv_tags(raw)))
         elif op == "playvoice":
             if not self._ff_active and len(parts) > 2:
                 rel = parts[2].strip()

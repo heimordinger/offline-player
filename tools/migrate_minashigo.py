@@ -34,7 +34,7 @@ from app.core.minashigo_viewer_index import category_of_scene, parse_viewer_inde
 DEFAULT_VIEWER = os.path.normpath(
     os.path.join(PROJECT_ROOT, "..", "孤儿离线", "MinashigoViewer-1.2-pc", "MinashigoViewer-1.2-pc")
 )
-GAME_ROOT = os.path.join(PROJECT_ROOT, "games", "orphan_order")
+GAME_ROOT = os.path.join(PROJECT_ROOT, "data", "orphan_order")
 JSON_DIR = os.path.join(GAME_ROOT, "json")
 RESOURCE_DIR = os.path.join(GAME_ROOT, "resource")
 EPISODE_DIR = os.path.join(GAME_ROOT, "episode")
@@ -90,6 +90,13 @@ def cg_rel(cg_id: str) -> str:
     return f"download/adv/image/cg/{cg_id}.jpg"
 
 
+def bg_rel(bg_name: str) -> str:
+    name = bg_name.strip()
+    if not name.lower().endswith((".jpg", ".jpeg", ".png")):
+        name = f"{name}.jpg"
+    return f"download/adv/image/bg/{name}"
+
+
 def txt_rel(scene_id: str, char_id: str | None) -> str:
     c4 = (char_id or "0000")[:4]
     return f"download/adv/text/character/{c4}/adultr/{scene_id}.txt"
@@ -108,6 +115,19 @@ def build_cg_index(cg_root: str) -> dict[str, str]:
     return index
 
 
+def build_bg_index(bg_root: str) -> dict[str, str]:
+    index: dict[str, str] = {}
+    if not os.path.isdir(bg_root):
+        return index
+    for fname in os.listdir(bg_root):
+        low = fname.lower()
+        if not low.endswith((".jpg", ".jpeg", ".png")):
+            continue
+        key = os.path.splitext(fname)[0]
+        index.setdefault(key, os.path.join(bg_root, fname))
+    return index
+
+
 def build_voice_index(voices_root: str) -> dict[str, str]:
     index: dict[str, str] = {}
     if not os.path.isdir(voices_root):
@@ -120,6 +140,18 @@ def build_voice_index(voices_root: str) -> dict[str, str]:
 
 def find_cg_file(cg_index: dict[str, str], cg_id: str) -> str | None:
     return cg_index.get(cg_id)
+
+
+def find_image_src(
+    rel: str,
+    *,
+    cg_index: dict[str, str],
+    bg_index: dict[str, str],
+) -> str | None:
+    stem = os.path.splitext(os.path.basename(rel.replace("\\", "/")))[0]
+    if "/image/bg/" in rel.replace("\\", "/"):
+        return bg_index.get(stem)
+    return cg_index.get(stem)
 
 
 def link_or_copy(src: str, dst: str) -> bool:
@@ -167,9 +199,15 @@ def parse_renpy_scene(path: str) -> ParsedScene | None:
         sm = SCENE_RE.match(line)
         if sm:
             target = sm.group(1)
-            if target.lower().startswith("black"):
+            low = target.lower()
+            if low.startswith("black"):
                 out.lines.append("bg,color_0_0_0,1,255")
                 out.lines.append("endwait")
+            elif low.startswith("bg"):
+                rel = bg_rel(target)
+                out.lines.append(f"bg,{rel}")
+                out.lines.append("endwait")
+                out.resources.append(rel)
             elif target.isdigit():
                 rel = cg_rel(target)
                 out.lines.append(f"bg,{rel}")
@@ -178,7 +216,15 @@ def parse_renpy_scene(path: str) -> ParsedScene | None:
             continue
         xm = XYZ_RE.match(line)
         if xm:
-            msg = xm.group(1).encode("utf-8").decode("unicode_escape") if "\\" in xm.group(1) else xm.group(1)
+            raw_msg = xm.group(1)
+            msg = (
+                raw_msg.replace("\\n", "\n")
+                .replace("\\t", "\t")
+                .replace('\\"', '"')
+                .replace("\\\\", "\\")
+                if "\\" in raw_msg
+                else raw_msg
+            )
             if current_name:
                 out.lines.append(f"name,{current_name}")
             out.lines.append(f'msg,1,"{escape_msg(msg)}"')
@@ -233,6 +279,7 @@ def migrate(
     viewer_game = os.path.join(viewer_path, "game")
     scripts_dir = os.path.join(viewer_game, "scripts")
     cg_root = os.path.join(viewer_game, "images", "cg")
+    bg_root = os.path.join(viewer_game, "images", "bg")
     voices_root = os.path.join(viewer_game, "audio", "voices")
 
     if not os.path.isdir(scripts_dir):
@@ -243,10 +290,11 @@ def migrate(
     os.makedirs(RESOURCE_DIR, exist_ok=True)
     os.makedirs(EPISODE_DIR, exist_ok=True)
 
-    print("索引 CG / 语音资源…", flush=True)
+    print("索引 CG / 背景 / 语音资源…", flush=True)
     cg_index = build_cg_index(cg_root)
+    bg_index = build_bg_index(bg_root)
     voice_index = build_voice_index(voices_root)
-    print(f"  CG: {len(cg_index)}, 语音: {len(voice_index)}", flush=True)
+    print(f"  CG: {len(cg_index)}, 背景: {len(bg_index)}, 语音: {len(voice_index)}", flush=True)
 
     scene_tags: dict[str, dict] = {}
     cat_names: dict[str, str] = dict(char_labels)
@@ -289,9 +337,9 @@ def migrate(
 
         resolved_resources = [txt_rel_path]
         for rel in parsed.resources:
-            if rel.endswith(".jpg"):
-                cg_id = os.path.splitext(os.path.basename(rel))[0]
-                src = find_cg_file(cg_index, cg_id)
+            low = rel.lower().replace("\\", "/")
+            if low.endswith((".jpg", ".jpeg", ".png")):
+                src = find_image_src(rel, cg_index=cg_index, bg_index=bg_index)
                 dst = os.path.join(res_dir, rel.replace("/", os.sep))
                 if src and link_assets:
                     if not link_or_copy(src, dst):
@@ -299,7 +347,7 @@ def migrate(
                 elif not src:
                     stats["missing_cg"] += 1
                 resolved_resources.append(rel)
-            elif "voice" in rel:
+            elif "voice" in low:
                 fname_v = os.path.basename(rel)
                 src_v = voice_index.get(fname_v)
                 dst = os.path.join(res_dir, rel.replace("/", os.sep))

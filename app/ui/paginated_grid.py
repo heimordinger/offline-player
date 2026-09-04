@@ -49,7 +49,7 @@ class _ThumbCard(QToolButton):
             QToolButton {
                 background: #1c2234; color: #ddd8d0;
                 border: 1px solid #3a4560; border-radius: 8px;
-                padding: 6px 6px 8px 6px; font-size: 12px;
+                padding: 6px 8px 10px 8px; font-size: 12px;
             }
             QToolButton:hover { border-color: #c4a05a; background: #243048; }
             """

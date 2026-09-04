@@ -7,13 +7,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from project_paths import PROJECT_ROOT, ensure_data_dirs, load_settings
+from project_paths import PROJECT_ROOT, ensure_data_dirs, ensure_app_icon, load_settings
 
 os.chdir(PROJECT_ROOT)
 ensure_data_dirs()
 
 
 def main() -> int:
+    from PySide6.QtGui import QIcon
     from PySide6.QtWidgets import QApplication, QMessageBox
 
     from app.core.startup import StartupWorker
@@ -21,7 +22,10 @@ def main() -> int:
     from app.ui.splash_screen import SplashScreen
 
     app = QApplication(sys.argv)
-    app.setApplicationName("DeepOneRE")
+    app.setApplicationName("离线播放器")
+    icon_path = ensure_app_icon()
+    if icon_path:
+        app.setWindowIcon(QIcon(icon_path))
 
     settings = load_settings()
     w = int(settings.get("窗口宽度", 1300))

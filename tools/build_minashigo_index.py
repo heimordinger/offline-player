@@ -23,7 +23,7 @@ from app.core.minashigo_viewer_index import (
 DEFAULT_VIEWER = os.path.normpath(
     os.path.join(PROJECT_ROOT, "..", "孤儿离线", "MinashigoViewer-1.2-pc", "MinashigoViewer-1.2-pc")
 )
-GAME_ROOT = os.path.join(PROJECT_ROOT, "games", "orphan_order")
+GAME_ROOT = os.path.join(PROJECT_ROOT, "data", "orphan_order")
 JSON_DIR = os.path.join(GAME_ROOT, "json")
 TAGS_PATH = os.path.join(GAME_ROOT, "scene_tags.json")
 CAT_NAMES_PATH = os.path.join(GAME_ROOT, "category_names.json")

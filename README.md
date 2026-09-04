@@ -15,6 +15,7 @@
 ```
 离线播放器/
 ├── app/                 # 新版客户端（PySide6）
+│   └── core/adapters/   # 多游戏适配器（按 kind）
 ├── legacy/              # 旧版 pygame
 ├── tools/               # 维护脚本
 ├── data/                # 本地资源（gitignore）
@@ -24,6 +25,33 @@
 └── start.bat
 ```
 
+## 多游戏适配器（万能壳）
+
+壳只负责：选游戏 → 分类 → 列表 → 播放。每种内容源是一个 **adapter**（`app/core/adapters/`），由 `games.json` 的 `kind` 选择：
+
+| kind | 适配器 | 说明 |
+|------|--------|------|
+| `adv`（默认） | ADV 台本 | DeepOne / 孤儿等：JSON + resource，可节拍播放 |
+| `renpy` | Ren'Py 离线包 | 导入后同 ADV；见下方导入命令 |
+| `telegram` | Telegram 录屏 | ChatExport 图/视频 |
+| `purchased` | 自购库 | 本地文件夹浏览 |
+
+`/api/games` 会返回每个游戏的 `adapter`（能力列表）以及全局 `adapters` 清单。新增游戏优先复用已有 kind；新形态再加适配器文件并注册到 `registry.py`。
+
+### 导入 Ren'Py 包
+
+支持：
+
+1. **DeepOne 系**（`game/json` + `game/resource`，与本播放器格式一致）
+2. **孤儿 Viewer 系**（`game/scripts/scene_*.rpy` → 转 ADV 台本）
+
+```bat
+py -3.13 tools\import_renpy_pack.py --pack "D:\path\to\DeepOne（renpy）" --detect-only
+py -3.13 tools\import_renpy_pack.py --pack "D:\path\to\DeepOne（renpy）" --game-id deepone_renpy --apply
+py -3.13 tools\import_renpy_pack.py --pack "D:\path\to\DeepOne（renpy）" --mount --apply
+```
+
+`--apply` 会导入（默认硬链接）并写入 `games.json`；`--mount` 不复制，直接指向包内 `game/`。
 ## 启动
 
 ```bat
@@ -48,14 +76,23 @@ py -3.13 tools\import_telegram_export.py
 
 ## 孤儿的工作（Minashigo ADV）
 
-从 MinashigoViewer 迁移 Ren'Py 台本，按**角色 ID**分类，场景卡片显示**日文标签**（角色名 · 场景类型）。
+从 MinashigoViewer 迁移 Ren'Py 台本到 `data/orphan_order`，按**角色 ID**分类，场景卡片显示**日文标签**（角色名 · 场景类型）。
 
 ```bat
 py -3.13 tools\migrate_minashigo.py
 py -3.13 run_app.py
 ```
 
-资源默认**硬链接**到 Viewer 的 CG/语音（不占双倍空间）。Telegram 录屏在独立游戏区 **孤儿的工作 · 录屏**。
+默认 Viewer 路径：`..\孤儿离线\MinashigoViewer-1.2-pc\MinashigoViewer-1.2-pc`  
+资源默认**硬链接**到 Viewer 的 CG/语音（不占双倍空间）。若换过盘符/目录或发现缺图缺语音：
+
+```bat
+py -3.13 tools\repair_orphan_assets.py
+```
+
+只补缺失文件，不重写台本。仍异常时可再跑全量 `tools\migrate_minashigo.py`（已有文件会跳过）。
+
+Telegram 录屏在独立游戏区 **孤儿的工作 · 录屏**。
 
 ## 孤儿的工作 · Telegram 录屏
 
@@ -102,6 +139,60 @@ py -3.13 tools\export_sillytavern.py --per-name --mode both
 在 SillyTavern 中：优先导入 `cards/*.png`（自带头像与数据）；纯 JSON 需手动上传头像。
 
 指定自定义头像：`--avatar 路径/to/image.png`
+
+## 打包 Release（exe + zip）
+
+```bat
+build_release.bat
+```
+
+生成 `release\offline-player-win64.zip`，解压后双击 `OfflinePlayer.exe` 即可。
+
+- **OfflinePlayer.exe**：轻量入口，启动同目录 `runtime\python.exe` 执行 `run_app.py`
+- **runtime/**：官方嵌入式 Python（完整标准库；首次打包会下载并缓存）
+- **_deps/**：PySide6 / Shiboken（与 exe 分离）
+- **app/**、`run_app.py`：业务代码，小版本用 `build_update.bat` 打更新包即可
+
+发布到 GitHub Releases 上传 `offline-player-win64.zip`；`data/` 资源用户自行准备。
+
+小版本更新：
+
+```bat
+build_update.bat
+```
+
+生成 `release\offline-player-update.zip`（不含 exe 与 _deps，解压覆盖）。
+
+### 自动更新
+
+启动时会访问 GitHub Releases 检查版本；若存在更新的 `offline-player-update.zip` 且网络可用，会询问是否更新（**不修改 `data/`、`settings.json`**）。无法访问 GitHub 时静默跳过。
+
+发布新版本时请：
+
+1. 修改根目录 `VERSION`（与 Git tag 一致，如 `1.0.1`）
+2. 运行 `build_update.bat`（或完整 `build_release.bat`）
+3. 在 GitHub Release 上传 `offline-player-update.zip`，tag 设为 `v1.0.1`
+
+## 手机互通测试（同一 WiFi）
+
+电脑端启动局域网只读服务：
+
+```bat
+serve_lan.bat
+```
+
+控制台会打印手机可访问的地址（如 `http://192.168.x.x:8765`）。手机浏览器打开该地址，点击「开始连通测试」，可验证：
+
+- 与电脑 API 连通
+- 读取 `games.json` 游戏列表
+- 加载本地预览图 / 视频（只读，**不修改 `data/`**）
+
+可选配置（`settings.json` → `局域网`）：
+
+- `port`：端口，默认 `8765`
+- `token`：非空时访问需带 `?token=...`（测试页可填写）
+
+若手机无法访问：确认同一 WiFi、Windows 防火墙放行端口、VPN/系统代理开启「绕过局域网」。
 
 ## 打包（legacy）
 

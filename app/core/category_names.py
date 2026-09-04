@@ -6,6 +6,7 @@ import json
 import os
 
 from app.core.adv_script import strip_adv_tags, use_chinese_script
+from app.core.deepone_ids import deepone_category_of
 from project_paths import active
 
 CACHE_FILENAME = "category_names.json"
@@ -92,7 +93,7 @@ def iter_speaker_names(script_path: str):
 def _group_jids_by_category(json_list: list[str]) -> dict[str, list[str]]:
     cat_jids: dict[str, list[str]] = {}
     for jid in json_list:
-        cat = jid.split("_")[0][:4]
+        cat = deepone_category_of(jid)
         cat_jids.setdefault(cat, []).append(jid)
     return cat_jids
 

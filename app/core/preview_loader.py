@@ -52,9 +52,15 @@ def get_url(file_name: str) -> str:
 
 
 def card_id_from_story(story_id: str) -> str:
-    sid = str(story_id).split("_")[0]
-    cid = sid[:6] if len(sid) >= 6 else sid
-    return cid if cid.isdigit() and len(cid) == 6 else ""
+    from app.core.deepone_ids import card_id_from_story as _card_id
+
+    return _card_id(story_id)
+
+
+def deepone_category_of(story_id: str) -> str:
+    from app.core.deepone_ids import deepone_category_of as _cat
+
+    return _cat(story_id)
 
 
 def cards_dir() -> str:

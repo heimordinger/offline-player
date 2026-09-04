@@ -1,0 +1,2 @@
+# Release 包依赖（打入 _deps/，与 exe 分离便于小版本只更新 app/）
+PySide6

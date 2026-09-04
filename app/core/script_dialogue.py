@@ -4,18 +4,21 @@ from __future__ import annotations
 
 import re
 
-from app.core.adv_script import strip_adv_tags
+from app.core.adv_script import fix_mojibake_text, strip_adv_tags, unescape_script_escapes
 
 RUBY_RE = re.compile(r"<ruby>(.*?)</ruby>")
 
 
 def normalize_speaker(raw: str) -> str:
-    text = strip_adv_tags(raw).strip()
+    text = strip_adv_tags(unescape_script_escapes(fix_mojibake_text(raw))).strip()
     return text
 
 
 def normalize_line_text(text: str) -> str:
-    return text.replace("\\n", "\n").strip()
+    text = unescape_script_escapes(fix_mojibake_text(text)).replace("\\n", "\n").strip()
+    if len(text) >= 2 and text[0] == text[-1] == '"':
+        text = text[1:-1].strip()
+    return text
 
 
 def is_narration(speaker: str, text: str) -> bool:
@@ -43,7 +46,7 @@ def parse_script_dialogue(lines: list[str]) -> list[dict]:
         parts = line.split(",")
         if len(parts) < 3:
             continue
-        text = normalize_line_text(strip_adv_tags(parts[2]))
+        text = normalize_line_text(strip_adv_tags(",".join(parts[2:])))
         if not text:
             continue
         dialogues.append(
