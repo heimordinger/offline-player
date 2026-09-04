@@ -36,7 +36,7 @@
 | `telegram` | Telegram 录屏 | ChatExport 图/视频 |
 | `purchased` | 自购库 | 本地文件夹浏览 |
 
-`/api/games` 会返回每个游戏的 `adapter`（能力列表）以及全局 `adapters` 清单。新增游戏优先复用已有 kind；新形态再加适配器文件并注册到 `registry.py`。
+新增游戏优先复用已有 kind；新形态再加适配器文件并注册到 `registry.py`。
 
 ### 导入 Ren'Py 包
 
@@ -139,60 +139,6 @@ py -3.13 tools\export_sillytavern.py --per-name --mode both
 在 SillyTavern 中：优先导入 `cards/*.png`（自带头像与数据）；纯 JSON 需手动上传头像。
 
 指定自定义头像：`--avatar 路径/to/image.png`
-
-## 打包 Release（exe + zip）
-
-```bat
-build_release.bat
-```
-
-生成 `release\offline-player-win64.zip`，解压后双击 `OfflinePlayer.exe` 即可。
-
-- **OfflinePlayer.exe**：轻量入口，启动同目录 `runtime\python.exe` 执行 `run_app.py`
-- **runtime/**：官方嵌入式 Python（完整标准库；首次打包会下载并缓存）
-- **_deps/**：PySide6 / Shiboken（与 exe 分离）
-- **app/**、`run_app.py`：业务代码，小版本用 `build_update.bat` 打更新包即可
-
-发布到 GitHub Releases 上传 `offline-player-win64.zip`；`data/` 资源用户自行准备。
-
-小版本更新：
-
-```bat
-build_update.bat
-```
-
-生成 `release\offline-player-update.zip`（不含 exe 与 _deps，解压覆盖）。
-
-### 自动更新
-
-启动时会访问 GitHub Releases 检查版本；若存在更新的 `offline-player-update.zip` 且网络可用，会询问是否更新（**不修改 `data/`、`settings.json`**）。无法访问 GitHub 时静默跳过。
-
-发布新版本时请：
-
-1. 修改根目录 `VERSION`（与 Git tag 一致，如 `1.0.1`）
-2. 运行 `build_update.bat`（或完整 `build_release.bat`）
-3. 在 GitHub Release 上传 `offline-player-update.zip`，tag 设为 `v1.0.1`
-
-## 手机互通测试（同一 WiFi）
-
-电脑端启动局域网只读服务：
-
-```bat
-serve_lan.bat
-```
-
-控制台会打印手机可访问的地址（如 `http://192.168.x.x:8765`）。手机浏览器打开该地址，点击「开始连通测试」，可验证：
-
-- 与电脑 API 连通
-- 读取 `games.json` 游戏列表
-- 加载本地预览图 / 视频（只读，**不修改 `data/`**）
-
-可选配置（`settings.json` → `局域网`）：
-
-- `port`：端口，默认 `8765`
-- `token`：非空时访问需带 `?token=...`（测试页可填写）
-
-若手机无法访问：确认同一 WiFi、Windows 防火墙放行端口、VPN/系统代理开启「绕过局域网」。
 
 ## 打包（legacy）
 

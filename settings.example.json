@@ -8,9 +8,5 @@
     "自定义视频目录": "custom_videos",
     "翻译api": {
         "use_translate": "yes"
-    },
-    "局域网": {
-        "port": 8765,
-        "token": ""
     }
 }

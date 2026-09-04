@@ -49,3 +49,19 @@ Thumbs.db
 /_tmp_extract/
 /_tmp_script_dump.txt
 .cursor/
+
+# 本地开发：未完成的双端 / 打包脚本（不上传仓库）
+/app/server/
+/app/web/
+/serve_lan.bat
+/tools/serve_lan.py
+/build_release.bat
+/build_release.py
+/build_update.bat
+/launcher.py
+/requirements-client.txt
+/run_debug.bat
+/app/core/updater.py
+/push_to_github.bat
+/.vscode/
+

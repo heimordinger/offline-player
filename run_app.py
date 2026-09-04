@@ -70,6 +70,8 @@ def main() -> int:
 
         if maybe_update(ROOT):
             return 0
+    except ImportError:
+        pass
     except Exception:
         traceback.print_exc()
     try:
@@ -77,7 +79,7 @@ def main() -> int:
     except ImportError as exc:
         print("启动失败：缺少依赖。")
         if "PySide6" in str(exc) or "Shiboken" in str(exc):
-            print("请确认 _deps 目录完整，或重新运行 build_release.bat")
+            print("请执行: pip install -r requirements.txt")
         traceback.print_exc()
         return 1
     try:
