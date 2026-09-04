@@ -6,6 +6,7 @@ imageio-ffmpeg
 
 # 新版客户端
 PySide6
+qrcode[pil]
 
 # Telegram 下载与按标签/媒体组分类
 telethon

@@ -123,6 +123,24 @@ def load_settings():
         return json.load(f)
 
 
+def save_settings(data: dict) -> None:
+    """写回 settings.json（保留其余字段）。"""
+    import json
+
+    os.makedirs(os.path.dirname(SETTINGS_PATH) or ".", exist_ok=True)
+    with open(SETTINGS_PATH, "w", encoding="utf8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+        f.write("\n")
+
+
+def update_settings(**kwargs) -> dict:
+    """合并更新 settings.json 顶层键，返回完整配置。"""
+    data = load_settings()
+    data.update(kwargs)
+    save_settings(data)
+    return data
+
+
 def ensure_data_dirs():
     for d in (
         active.resource_dir,

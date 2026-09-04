@@ -21,7 +21,7 @@ class SplashScreen(QWidget):
         self._target_index = 0
         self._sub_detail = ""
         self.setFixedSize(width, height)
-        self.setWindowTitle("DeepOneRE")
+        self.setWindowTitle("离线播放器")
         self.setStyleSheet("background: #0a0c14;")
 
         self._timer = QTimer(self)

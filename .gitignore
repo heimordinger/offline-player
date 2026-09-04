@@ -31,6 +31,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+/app/_vendor/
 
 # 工具私密文件
 /tg_library/
@@ -64,5 +65,7 @@ Thumbs.db
 /app/core/updater.py
 /push_to_github.bat
 /upload_to_github.bat
+/app/ui/lan_panel.py
+/mobile/
 /.vscode/
 

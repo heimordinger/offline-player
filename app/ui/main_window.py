@@ -63,6 +63,7 @@ PAGE_HOME = 1
 PAGE_SCENES = 2
 PAGE_PLAY = 3
 PAGE_BUY = 4
+PAGE_LAN = 5
 
 GRID_COLS = 4
 GRID_ROWS = 3
@@ -96,7 +97,7 @@ class MainWindow(QMainWindow):
         self._browse_parent = ""
         self._section_list_cache: dict[str, list[ThumbEntry]] = {}
         self._scene_list_cache: dict[str, list[ThumbEntry]] = {}
-        self.setWindowTitle("DeepOneRE")
+        self.setWindowTitle("离线播放器")
         from project_paths import load_settings
 
         settings = load_settings()
@@ -145,6 +146,16 @@ class MainWindow(QMainWindow):
         self._games_hint.setObjectName("hint")
         self._games_hint.setAlignment(Qt.AlignCenter)
         games_layout.addWidget(self._games_hint)
+        lan_row = QHBoxLayout()
+        lan_row.addStretch(1)
+        self._lan_btn = QPushButton("双端 · 局域网")
+        self._lan_btn.setToolTip(
+            "启动手机端服务；访问密令用于同网鉴权，复制地址可带密令直进"
+        )
+        self._lan_btn.clicked.connect(self._open_lan_panel)
+        lan_row.addWidget(self._lan_btn)
+        lan_row.addStretch(1)
+        games_layout.addLayout(lan_row)
         self._game_grid = PaginatedThumbnailGrid(
             GRID_COLS, GRID_ROWS, GAME_ICON, GAME_CELL, wrap_pages=True, text_only=True
         )
@@ -235,6 +246,20 @@ class MainWindow(QMainWindow):
         self._buy_reader.closed.connect(self._on_buy_reader_closed)
         self._stack.addWidget(self._buy_reader)
 
+        try:
+            from app.ui.lan_panel import LanPanel
+
+            self._lan_panel = LanPanel()
+            self._lan_panel.back_requested.connect(self._show_games)
+            self._stack.addWidget(self._lan_panel)
+            self._lan_available = True
+        except Exception as exc:
+            print(f"[双端] 面板不可用: {exc}")
+            self._lan_panel = None
+            self._lan_available = False
+            # 占位，保持 PAGE_LAN 索引稳定
+            self._stack.addWidget(QWidget())
+
         outer.addWidget(self._stack, 1)
 
         self.setStatusBar(QStatusBar())
@@ -250,6 +275,7 @@ class MainWindow(QMainWindow):
         self._scene_title.setText("")
         self._scene_hint.setText("")
         self._detail_label.setText("")
+        self.setWindowTitle("离线播放器")
         page = self._game_grid.page if self._game_grid.page_count > 0 else 0
         self._game_grid.set_entries(self._game_entries, page=page)
         n = len(self._games)
@@ -260,6 +286,29 @@ class MainWindow(QMainWindow):
         )
         self._stack.setCurrentIndex(PAGE_GAMES)
         self.statusBar().showMessage(f"共 {n} 个游戏 · 点击进入")
+        if hasattr(self, "_lan_btn"):
+            self._lan_btn.setEnabled(getattr(self, "_lan_available", False))
+
+    def _open_lan_panel(self):
+        if not getattr(self, "_lan_available", False) or self._lan_panel is None:
+            QMessageBox.warning(
+                self,
+                "双端不可用",
+                "未找到局域网服务模块（app/server、app/web）。",
+            )
+            return
+        self._stack.setCurrentIndex(PAGE_LAN)
+        self.setWindowTitle("离线播放器 · 双端")
+        self.statusBar().showMessage("双端 · 局域网服务")
+
+    def closeEvent(self, event):
+        panel = getattr(self, "_lan_panel", None)
+        if panel is not None and hasattr(panel, "shutdown"):
+            try:
+                panel.shutdown()
+            except Exception:
+                pass
+        super().closeEvent(event)
 
     def _open_game(self, game_id: str):
         if self._game_load_worker and self._game_load_worker.isRunning():
@@ -324,7 +373,7 @@ class MainWindow(QMainWindow):
         self._playback.set_catalog(self.catalog)
         if isinstance(result.catalog, PurchasedCatalog):
             self._buy_reader.set_catalog(result.catalog)
-        self.setWindowTitle(f"DeepOneRE · {game.name}")
+        self.setWindowTitle(f"离线播放器 · {game.name}")
         self._show_home()
 
     def _home_back_clicked(self):

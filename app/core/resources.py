@@ -64,6 +64,9 @@ def _timeout_for_url(url: str) -> int:
         return 45
     if low.endswith((".jpg", ".jpeg", ".png", ".webp")):
         return 90
+    # 剧本 txt：CDN 不通时别把手机端「准备」拖死
+    if low.endswith(".txt"):
+        return 25
     return 60
 
 
